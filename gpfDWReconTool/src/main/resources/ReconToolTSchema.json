@@ -1,0 +1,9 @@
+{
+	"keys":["fiI"],
+	"schemas":{
+		"fiI":"Int"
+	},
+	"thresholds":{
+		"fiI":"1"
+	}
+}
