@@ -90,8 +90,113 @@ object Csv2ExcelUtil {
       }
     }
   }
-  
-  //private def New2
+
+  private def createNew2Sheet(collectResult: Array[SqlRow], arrayHead: Array[String]) = {
+    val arrayData = collectResult.map(row => this.eachRow(row))
+    val head = leftSideSheet.createRow(0)
+    for (i <- 0 until this.setHeader(arrayHead).length) {
+      val header = head.createCell(i)
+      header.setCellValue(this.setHeader(arrayHead).apply(i))
+    }
+
+    val dataArray = this.setCellData(arrayData)
+    for (i <- 0 until dataArray.length) {
+      val dataList = dataArray.apply(i).toList
+      val rows = leftSideSheet.createRow(i + 1)
+      for (j <- 0 until dataList.length) {
+        val rowCell = rows.createCell(j)
+        rowCell.setCellValue(dataList.apply(i))
+      }
+    }
+  }
+
+  private def createNew3Sheet(collectResult: Array[SqlRow], arrayHead: Array[String]) = {
+    val arrayData = collectResult.map(row => this.eachRow(row))
+    val head = rightSideSheet.createRow(0)
+    for (i <- 0 until this.setHeader(arrayHead).length) {
+      val header = head.createCell(i)
+      header.setCellValue(this.setHeader(arrayHead).apply(i))
+    }
+
+    val dataArray = this.setCellData(arrayData)
+    for (i <- 0 until dataArray.length) {
+      val dataList = dataArray.apply(i).toList
+      val rows = rightSideSheet.createRow(i + 1)
+      for (j <- 0 until dataList.length) {
+        val rowCell = rows.createCell(j)
+        rowCell.setCellValue(dataList.apply(i))
+      }
+    }
+  }
+
+  private def createIntroSheet(lName: String, rName: String, collectResult: Array[SqlRow], ltNotInRt: Array[SqlRow], rtNotInLt: Array[SqlRow], rowsCut: Int) = {
+    val arrayData = collectResult.map(row => this.eachRow(row))
+    var aBKeyValueNotMatch = 0
+    val allKeyMatchValueRow = arrayData.length
+    val INANOTINB = ltNotInRt.length
+    val INBNOTINA = rtNotInLt.length
+    val dataArray = this.setCellData(arrayData)
+    for (i <- 0 until dataArray.length) {
+      val dataList = dataArray.apply(i).toList
+      breakable {
+        for (j <- 0 until dataList.length) {
+          if ("Y".equals(dataList.apply(i).trim()) && wb.getSheet("KeyMValueNM").getRow(0).getCell(j).toString().contains("flag")) {
+            aBKeyValueNotMatch += 1
+            break
+          }
+        }
+      }
+    }
+
+    val headStyle = wb.createCellStyle()
+    headStyle.setFillBackgroundColor(IndexedColors.GREEN.getIndex)
+    headStyle.setFillPattern(CellStyle.SOLID_FOREGROUND)
+
+    val headRow1 = introSheet.createRow(0)
+    val headValue1 = headRow1.createCell(0)
+    headValue1.setCellValue("Table Name")
+    headValue1.setCellStyle(headStyle)
+
+    val headValue2 = headRow1.createCell(1)
+    headValue1.setCellValue("Table Alias")
+    headValue1.setCellStyle(headStyle)
+
+    val data1 = introSheet.createRow(1)
+    data1.createCell(0).setCellValue(lName)
+    data1.createCell(1).setCellValue("A")
+
+    val data2 = introSheet.createRow(2)
+    data2.createCell(0).setCellValue(rName)
+    data2.createCell(1).setCellValue("B")
+
+    val headRow2 = introSheet.createRow(4)
+    val headValue3 = headRow2.createCell(0)
+    headValue3.setCellValue("Recon Type")
+    headValue3.setCellStyle(headStyle)
+
+    val headValue4 = headRow2.createCell(1)
+    headValue4.setCellValue("Rows")
+    headValue4.setCellStyle(headStyle)
+
+    val data4 = introSheet.createRow(1)
+    data4.createCell(0).setCellValue("A, B KeyMatchValueMatch")
+    data4.createCell(1).setCellValue(allKeyMatchValueRow - aBKeyValueNotMatch)
+
+    val data5 = introSheet.createRow(6)
+    data2.createCell(0).setCellValue("A, B KeyMatchValueNotMatch")
+    data2.createCell(1).setCellValue(aBKeyValueNotMatch)
+
+    val data6 = introSheet.createRow(7)
+    data6.createCell(0).setCellValue("IN A NOT IN B")
+    data6.createCell(1).setCellValue(INANOTINB)
+
+    val data7 = introSheet.createRow(8)
+    data7.createCell(0).setCellValue("IN B NOT IN A")
+    data7.createCell(1).setCellValue(INBNOTINA)
+
+    introSheet.autoSizeColumn(0)
+    introSheet.autoSizeColumn(1)
+  }
 
   private def removeNotDiffRow(collectResult: Array[SqlRow]): List[Array[String]] = {
     val arrayData = collectResult.map(row => eachRow(row))
