@@ -24,103 +24,140 @@ import com.gxq.learn.recontool.utils.SparkSQLBuilder
 import com.gxq.learn.recontool.utils.TSchemaUtil
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.Dataset
+import scala.collection.mutable.ArrayBuffer
+import com.gxq.learn.recontool.utils.Csv2ExcelUtil
+import com.gxq.learn.recontool.utils.ReconUtil
+import com.gxq.learn.recontool.utils.SparkJDBCConnection
 
 object ReconCompute {
-  def invokeRecon(runType: String, reconSchemaPath: String) {
+  def invokeRecon(runType: String = "yarn",
+                  reconType: String = "FF",
+                  reconSchemaPath: String = "/sharedata/recontool/ReconToolTSchema.json",
+                  leftTableFilePath: String = "/sharedata/recontool/LeftTable.csv",
+                  rightTableFilePath: String = "/sharedata/recontool/rigthTable.csv",
+                  excelPath: String = "/sharedata/recontool/ReconResult.xlsx",
+                  csvPath: String = "hdfs://bigdata/usr/gpfadm",
+                  rowsCut: String = "10000") {
+    // valiate file path
+    ReconUtil.validateFilePath(reconSchemaPath)
+    ReconUtil.validateFilePath(leftTableFilePath)
+    ReconUtil.validateFilePath(rightTableFilePath)
+
     val (sc, ss) = SparkContextFactory.getSparkContext(runType)
 
+    // get table schema
     val reconSchema: ReconToolTSchema = TSchemaUtil.getTSchema(sc, reconSchemaPath)
     val keysArray = reconSchema.keys
     val schemasMap = reconSchema.schemas
     val thresholdsMap = reconSchema.thresholds
 
-    val leftTableRDD = sc.textFile("D:/BreaksForFII_PRO.csv")
-    val rightTableRDD = sc.textFile("D:/BreaksForFII_UAT.csv")
+    // load tables
+    val leftTableRDD = sc.textFile(leftTableFilePath)
+    val rightTableRDD = sc.textFile(rightTableFilePath)
+
+    // get title colomn list
     val titleArray = leftTableRDD.first().split(",", -1).toArray
+    val titleSchema = ReconUtil.getTitleSchema(schemasMap, titleArray)
 
-    val titleSchema = this.getTitleSchema(schemasMap, titleArray)
+    // create left recon table
+    ReconUtil.createDataFrame(titleSchema, leftTableRDD, titleArray, schemasMap, ss, "ReconTableLeft")
 
-    this.createDataFrame(titleSchema, leftTableRDD, titleArray, schemasMap, ss, "ReconTableLeft")
-    this.createDataFrame(titleSchema, rightTableRDD, titleArray, schemasMap, ss, "ReconTableRight")
+    // create right recon talbe
+    ReconUtil.createDataFrame(titleSchema, rightTableRDD, titleArray, schemasMap, ss, "ReconTableRight")
+
+    // generate only one side data sql
+    val tableOneOnly = SparkSQLBuilder.buildOnsideSQL("ReconTableLeft", "ReconTableRight", keysArray)
+    val tableTwoOny = SparkSQLBuilder.buildOnsideSQL("ReconTableRight", "ReconTableLeft", keysArray)
+
+    val leftNotInRTDF = ss.sql(tableOneOnly)
+    val rightNotInRTDF = ss.sql(tableTwoOny)
+
+    // generate left or right dataframe
+    val lTNotInRTDF = leftNotInRTDF.repartition(1)
+    lTNotInRTDF.cache()
+
+    val rTNotInRTDF = rightNotInRTDF.repartition(1)
+    rTNotInRTDF.cache()
+
+    // generate left or right dataframe head
+    val lTNotInRTTitle = lTNotInRTDF.schema.fields.map(_.name)
+    val rTNotInRTTitle = rTNotInRTDF.schema.fields.map(_.name)
+
+    // remove key columns from the schema
+    val titleBuffer = titleArray.toBuffer
+    for (key <- keysArray) {
+      titleBuffer -= key
+    }
+
+    // combine keymatch but value not match sql
+    val keyMatchOne = SparkSQLBuilder.buildNotMatchSQL("ReconTableLeft", "ReconTableRight", titleBuffer, keysArray, true)
+    val keyMatchTwo = SparkSQLBuilder.buildNotMatchSQL("ReconTableRight", "ReconTableLeft", titleBuffer, keysArray, true)
+
+    val leftTable = ss.sql(keyMatchOne)
+    val rightTable = ss.sql(keyMatchTwo)
 
     val sqlText = SparkSQLBuilder.buildSQL(titleArray, keysArray, schemasMap, thresholdsMap, "ReconTableLeft", "ReconTableRight")
-    println("sqlText:" + sqlText)
 
+    // generate key match date not match dataframe
     val lTInRTDF = ss.sql(sqlText).repartition(1)
     lTInRTDF.cache()
-    println("555555555555555555555555")
     lTInRTDF.show()
 
-    val csvPath = "hdfs://bigdata/usr/gpfadm"
+    // generate key match data not match head array
+    val arrBuffer = ArrayBuffer[String]()
+    lTInRTDF.schema.fields.foreach(sf => arrBuffer += sf.name)
+    val lTInRTHead = arrBuffer.toArray[String]
 
+    Csv2ExcelUtil.writeExcel(ReconUtil.getFileName(leftTableFilePath),
+      ReconUtil.getFileName(rightTableFilePath),
+      lTInRTHead,
+      lTInRTDF.rdd.collect(),
+      lTNotInRTTitle,
+      lTNotInRTDF.rdd.collect(),
+      rTNotInRTTitle,
+      rTNotInRTDF.rdd.collect(),
+      excelPath,
+      rowsCut.toInt)
+
+    // generate csv
     lTInRTDF.write.option("head", "true").mode("overwrite").csv(csvPath)
-  }
+    lTInRTDF.unpersist()
+    lTNotInRTDF.unpersist()
+    rTNotInRTDF.unpersist()
 
-  private def getTitleSchema(schemasMap: Map[String, String], titleArray: Array[String]): StructType = {
-    val sFields = new Array[StructField](titleArray.length)
-    for (i <- 0 until titleArray.length) {
-      val dateTypeOption = schemasMap.get(titleArray(i))
-      dateTypeOption match {
-        case Some("Int")    => sFields(i) = StructField(titleArray(i), IntegerType, true, Metadata.empty)
-        case Some("Double") => sFields(i) = StructField(titleArray(i), DoubleType, true, Metadata.empty)
-        case None           => sFields(i) = StructField(titleArray(i), StringType, true, Metadata.empty)
-        case _              => throw new IllegalArgumentException(dateTypeOption.toString() + " is not support.")
-      }
-    }
-    val titleSchema = new StructType(sFields)
-    titleSchema
+    sc.stop()
+    ss.stop()
   }
+  
+    def invokeReconTT(runType: String = "yarn",
+                  reconType: String = "FF",
+                  reconSchemaPath: String = "/sharedata/recontool/ReconToolTSchema.json",
+                  leftTableFilePath: String = "/sharedata/recontool/LeftTable.csv",
+                  rightTableFilePath: String = "/sharedata/recontool/rigthTable.csv",
+                  excelPath: String = "/sharedata/recontool/ReconResult.xlsx",
+                  csvPath: String = "hdfs://bigdata/usr/gpfadm",
+                  rowsCut: String = "10000") {
+    // valiate file path
+    ReconUtil.validateFilePath(reconSchemaPath)
+    ReconUtil.validateFilePath(leftTableFilePath)
+    ReconUtil.validateFilePath(rightTableFilePath)
 
-  private def rddDataConvert(titleArray: Array[String], schemasMap: Map[String, String], sourceRDD: RDD[String]): RDD[Row] = {
-    val dataRDD = sourceRDD.map(_.split(",")).map(p => {
-      var seq = Seq[Any]()
-      for (i <- 0 until p.length) {
-        val dateType = schemasMap.get(titleArray(i))
-        dateType match {
-          case Some("Int")    => { seq = seq :+ p(i).toInt }
-          case Some("Double") => { seq = seq :+ p(i).toDouble }
-          case None           => { seq = seq :+ p(i) }
-          case _              => { seq = seq :+ p(i) }
-        }
-      }
-      Row.fromSeq(seq)
-    })
-    dataRDD
-  }
+    val (sc, ss) = SparkContextFactory.getSparkContext(runType)
 
-  private def createDataFrame(titleSchema: StructType, tableRDD: RDD[String], titleArray: Array[String], schemasMap: Map[String, String], ss: SparkSession, viewName: String): Dataset[Row] = {
-    val tableFirst = tableRDD.first();
-    val filterRDD = tableRDD.filter(_ != tableFirst)
-    val tableDataRDD = this.rddDataConvert(titleArray, schemasMap, filterRDD)
-    val tableDataDF = ss.createDataFrame(tableDataRDD, titleSchema)
-    tableDataDF.createTempView(viewName)
-    tableDataDF.show()
-    tableDataDF
-  }
+    // get table schema
+    val reconSchema: ReconToolTSchema = TSchemaUtil.getTSchema(sc, reconSchemaPath)
+    val keysArray = reconSchema.keys
+    val schemasMap = reconSchema.schemas
+    val thresholdsMap = reconSchema.thresholds
 
-  private def typeConvert(field: StructField) = {
-    field.dataType match {
-      case IntegerType => "INTEGER"
-      case LongType    => "BIGINT"
-      case DoubleType  => "DOUBLE PRECISION"
-      case FloatType   => "REAL"
-      case ShortType   => "INTEGER"
-      case ByteType    => "SMALLINT" // Redshift does not support the BYTE type.
-      case BooleanType => "BOOLEAN"
-      case StringType =>
-        if (field.metadata.contains("maxlength")) {
-          s"VARCHAR(${field.metadata.getLong("maxlength")})"
-        } else {
-          "TEXT"
-        }
-      case TimestampType  => "TIMESTAMP"
-      case DateType       => "DATE"
-      case t: DecimalType => s"DECIMAL(${t.precision},${t.scale})"
-      case _              => throw new IllegalArgumentException(s"Don't know how to save $field to JDBC")
-    }
-  }
+    // load tables
+    //val leftTableRDD = sc.textFile(leftTableFilePath)
+    //val rightTableRDD = sc.textFile(rightTableFilePath)
+    SparkJDBCConnection.loadDataFromJDBC("leftSQLDBType", "leftSQL", ss, "tableName")
 
-  private def getFileName(filePath: String) = {
-    filePath.substring(filePath.lastIndexOf("/") + 1, filePath.lastIndexOf("."))
-  }
+    // get title colomn list
+
+    sc.stop()
+    ss.stop()
+  } 
 }

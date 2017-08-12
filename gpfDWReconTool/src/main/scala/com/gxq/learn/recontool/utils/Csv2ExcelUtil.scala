@@ -7,6 +7,7 @@ import scala.collection.mutable.ListBuffer
 import scala.collection.mutable.ArrayBuffer
 import org.apache.poi.ss.usermodel.CellStyle
 import scala.util.control.Breaks._
+import java.io.FileOutputStream
 
 object Csv2ExcelUtil {
   val wb = new XSSFWorkbook
@@ -24,11 +25,11 @@ object Csv2ExcelUtil {
   cellStyle.setFillBackgroundColor(IndexedColors.ORANGE.getIndex)
   cellStyle.setFillPattern(CellStyle.SOLID_FOREGROUND)
 
-  def setHeader(heads: Array[String]): List[String] = {
+  private def setHeader(heads: Array[String]): List[String] = {
     heads.toList
   }
 
-  def setCellData(dataList: Array[Array[String]]): List[Array[String]] = {
+  private def setCellData(dataList: Array[Array[String]]): List[Array[String]] = {
     dataList.toList
   }
 
@@ -36,7 +37,14 @@ object Csv2ExcelUtil {
                  lTNotInRTHead: Array[String], ltNotInRT: Array[SqlRow],
                  rTNotInLTHead: Array[String], rTNotInLT: Array[SqlRow],
                  excelPath: String, rowsCut: Int) = {
+    this.createNew1Sheet(lTInRT, ltInRTHead, rowsCut)
+    this.createNew2Sheet(ltNotInRT, lTNotInRTHead)
+    this.createNew3Sheet(rTNotInLT, rTNotInLTHead)
+    this.createIntroSheet(lTName, rTName, lTInRT, ltNotInRT, rTNotInLT, rowsCut)
 
+    val fileOut = new FileOutputStream(excelPath)
+    wb.write(fileOut)
+    fileOut.close()
   }
 
   private def createNew1Sheet(collectResult: Array[SqlRow], arrayHead: Array[String], rowsCut: Int) = {
