@@ -30,7 +30,7 @@ import com.gxq.learn.recontool.utils.ReconUtil
 import com.gxq.learn.recontool.utils.SparkJDBCConnection
 
 object ReconCompute {
-  def invokeRecon(runType: String = "yarn",
+  def invokeReconFF(runType: String = "yarn",
                   reconType: String = "FF",
                   reconSchemaPath: String = "/sharedata/recontool/ReconToolTSchema.json",
                   leftTableFilePath: String = "/sharedata/recontool/LeftTable.csv",
@@ -67,10 +67,10 @@ object ReconCompute {
 
     // generate only one side data sql
     val tableOneOnly = SparkSQLBuilder.buildOnsideSQL("ReconTableLeft", "ReconTableRight", keysArray)
-    val tableTwoOny = SparkSQLBuilder.buildOnsideSQL("ReconTableRight", "ReconTableLeft", keysArray)
+    val tableTwoOnly = SparkSQLBuilder.buildOnsideSQL("ReconTableRight", "ReconTableLeft", keysArray)
 
     val leftNotInRTDF = ss.sql(tableOneOnly)
-    val rightNotInRTDF = ss.sql(tableTwoOny)
+    val rightNotInRTDF = ss.sql(tableTwoOnly)
 
     // generate left or right dataframe
     val lTNotInRTDF = leftNotInRTDF.repartition(1)
@@ -91,7 +91,7 @@ object ReconCompute {
 
     // combine keymatch but value not match sql
     val keyMatchOne = SparkSQLBuilder.buildNotMatchSQL("ReconTableLeft", "ReconTableRight", titleBuffer, keysArray, true)
-    val keyMatchTwo = SparkSQLBuilder.buildNotMatchSQL("ReconTableRight", "ReconTableLeft", titleBuffer, keysArray, true)
+    val keyMatchTwo = SparkSQLBuilder.buildNotMatchSQL("ReconTableLeft", "ReconTableRight", titleBuffer, keysArray, true)
 
     val leftTable = ss.sql(keyMatchOne)
     val rightTable = ss.sql(keyMatchTwo)
@@ -101,6 +101,7 @@ object ReconCompute {
     // generate key match date not match dataframe
     val lTInRTDF = ss.sql(sqlText).repartition(1)
     lTInRTDF.cache()
+    println("5555555555555555555555")
     lTInRTDF.show()
 
     // generate key match data not match head array
@@ -108,7 +109,8 @@ object ReconCompute {
     lTInRTDF.schema.fields.foreach(sf => arrBuffer += sf.name)
     val lTInRTHead = arrBuffer.toArray[String]
 
-    Csv2ExcelUtil.writeExcel(ReconUtil.getFileName(leftTableFilePath),
+    Csv2ExcelUtil.writeExcel(
+      ReconUtil.getFileName(leftTableFilePath),
       ReconUtil.getFileName(rightTableFilePath),
       lTInRTHead,
       lTInRTDF.rdd.collect(),

@@ -109,7 +109,7 @@ object ReconUtil {
     val tableDataRDD = this.rddDataConvert(titleArray, schemasMap, filterRDD)
     val tableDataDF = ss.createDataFrame(tableDataRDD, titleSchema)
     tableDataDF.createTempView(viewName)
-    tableDataDF.show()
+    //tableDataDF.show()
     tableDataDF
   }
 }
