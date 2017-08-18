@@ -31,13 +31,13 @@ import com.gxq.learn.recontool.utils.SparkJDBCConnection
 
 object ReconCompute {
   def invokeReconFF(runType: String = "yarn",
-                  reconType: String = "FF",
-                  reconSchemaPath: String = "/sharedata/recontool/ReconToolTSchema.json",
-                  leftTableFilePath: String = "/sharedata/recontool/LeftTable.csv",
-                  rightTableFilePath: String = "/sharedata/recontool/rigthTable.csv",
-                  excelPath: String = "/sharedata/recontool/ReconResult.xlsx",
-                  csvPath: String = "hdfs://bigdata/usr/gpfadm",
-                  rowsCut: String = "10000") {
+                    reconType: String = "FF",
+                    reconSchemaPath: String = "/sharedata/recontool/ReconToolTSchema.json",
+                    leftTableFilePath: String = "/sharedata/recontool/LeftTable.csv",
+                    rightTableFilePath: String = "/sharedata/recontool/rigthTable.csv",
+                    excelPath: String = "/sharedata/recontool/ReconResult.xlsx",
+                    csvPath: String = "hdfs://bigdata/usr/gpfadm",
+                    rowsCut: String = "10000") {
     // valiate file path
     ReconUtil.validateFilePath(reconSchemaPath)
     ReconUtil.validateFilePath(leftTableFilePath)
@@ -56,7 +56,7 @@ object ReconCompute {
     val rightTableRDD = sc.textFile(rightTableFilePath)
 
     // get title colomn list
-    val titleArray = leftTableRDD.first().split(",", -1).toArray
+    val titleArray = ReconUtil.keyPrioritized(keysArray, leftTableRDD.first().split(",", -1).toArray)
     val titleSchema = ReconUtil.getTitleSchema(schemasMap, titleArray)
 
     // create left recon table
@@ -109,6 +109,9 @@ object ReconCompute {
     lTInRTDF.schema.fields.foreach(sf => arrBuffer += sf.name)
     val lTInRTHead = arrBuffer.toArray[String]
 
+    // generate csv
+    lTInRTDF.write.option("head", "true").mode("overwrite").csv(csvPath)
+
     Csv2ExcelUtil.writeExcel(
       ReconUtil.getFileName(leftTableFilePath),
       ReconUtil.getFileName(rightTableFilePath),
@@ -119,10 +122,8 @@ object ReconCompute {
       rTNotInRTTitle,
       rTNotInRTDF.rdd.collect(),
       excelPath,
-      rowsCut.toInt)
+      rowsCut.toInt, keysArray.length)
 
-    // generate csv
-    lTInRTDF.write.option("head", "true").mode("overwrite").csv(csvPath)
     lTInRTDF.unpersist()
     lTNotInRTDF.unpersist()
     rTNotInRTDF.unpersist()
@@ -130,15 +131,15 @@ object ReconCompute {
     sc.stop()
     ss.stop()
   }
-  
-    def invokeReconTT(runType: String = "yarn",
-                  reconType: String = "FF",
-                  reconSchemaPath: String = "/sharedata/recontool/ReconToolTSchema.json",
-                  leftTableFilePath: String = "/sharedata/recontool/LeftTable.csv",
-                  rightTableFilePath: String = "/sharedata/recontool/rigthTable.csv",
-                  excelPath: String = "/sharedata/recontool/ReconResult.xlsx",
-                  csvPath: String = "hdfs://bigdata/usr/gpfadm",
-                  rowsCut: String = "10000") {
+
+  def invokeReconTT(runType: String = "yarn",
+                    reconType: String = "FF",
+                    reconSchemaPath: String = "/sharedata/recontool/ReconToolTSchema.json",
+                    leftTableFilePath: String = "/sharedata/recontool/LeftTable.csv",
+                    rightTableFilePath: String = "/sharedata/recontool/rigthTable.csv",
+                    excelPath: String = "/sharedata/recontool/ReconResult.xlsx",
+                    csvPath: String = "hdfs://bigdata/usr/gpfadm",
+                    rowsCut: String = "10000") {
     // valiate file path
     ReconUtil.validateFilePath(reconSchemaPath)
     ReconUtil.validateFilePath(leftTableFilePath)
@@ -161,5 +162,5 @@ object ReconCompute {
 
     sc.stop()
     ss.stop()
-  } 
+  }
 }

@@ -77,6 +77,10 @@ object ReconUtil {
     titleSchema
   }
 
+  def keyPrioritized(keysArray: Array[String], titleArray: Array[String]): Array[String] = {
+    titleArray.filter(p => !keysArray.contains(p)).++:(keysArray)
+  }
+
   private def rddDataConvert(titleArray: Array[String], schemasMap: Map[String, String], sourceRDD: RDD[String]): RDD[Row] = {
     sourceRDD.map(_.split(",", -1)).map(p => for (i <- 0 until p.length) yield {
       val dateType = schemasMap.get(titleArray(i))

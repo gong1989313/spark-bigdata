@@ -19,10 +19,14 @@ object Csv2ExcelUtil {
 
   val headStyle = wb.createCellStyle()
   headStyle.setFillBackgroundColor(IndexedColors.SKY_BLUE.getIndex)
-  headStyle.setFillPattern(CellStyle.ALIGN_CENTER)
+  headStyle.setFillPattern(CellStyle.SOLID_FOREGROUND)
+
+  val headIndexStyle = wb.createCellStyle()
+  headIndexStyle.setFillBackgroundColor(IndexedColors.MAROON.getIndex)
+  headIndexStyle.setFillPattern(CellStyle.SOLID_FOREGROUND)
 
   val cellStyle = wb.createCellStyle()
-  cellStyle.setFillBackgroundColor(IndexedColors.ORANGE.getIndex)
+  cellStyle.setFillBackgroundColor(IndexedColors.YELLOW.getIndex)
   cellStyle.setFillPattern(CellStyle.SOLID_FOREGROUND)
 
   private def setHeader(heads: Array[String]): List[String] = {
@@ -34,25 +38,31 @@ object Csv2ExcelUtil {
   }
 
   def writeExcel(lTName: String, rTName: String, ltInRTHead: Array[String], lTInRT: Array[SqlRow],
-                 lTNotInRTHead: Array[String], ltNotInRT: Array[SqlRow],
+                 lTNotInRTHead: Array[String], lTNotInRT: Array[SqlRow],
                  rTNotInLTHead: Array[String], rTNotInLT: Array[SqlRow],
-                 excelPath: String, rowsCut: Int) = {
-    this.createNew1Sheet(lTInRT, ltInRTHead, rowsCut)
-    this.createNew2Sheet(ltNotInRT, lTNotInRTHead)
-    this.createNew3Sheet(rTNotInLT, rTNotInLTHead)
-    this.createIntroSheet(lTName, rTName, lTInRT, ltNotInRT, rTNotInLT, rowsCut)
+                 excelPath: String, rowsCut: Int, indexRow: Int) = {
+    this.createNew1Sheet(lTInRT, ltInRTHead, rowsCut, indexRow)
+    this.createNew2Sheet(lTNotInRT, lTNotInRTHead, rowsCut)
+    this.createNew3Sheet(rTNotInLT, rTNotInLTHead, rowsCut)
+    this.createIntroSheet(lTName, rTName, lTInRT, lTNotInRT, rTNotInLT, ltInRTHead, rowsCut)
 
     val fileOut = new FileOutputStream(excelPath)
     wb.write(fileOut)
     fileOut.close()
   }
 
-  private def createNew1Sheet(collectResult: Array[SqlRow], arrayHead: Array[String], rowsCut: Int) = {
+  private def createNew1Sheet(collectResult: Array[SqlRow], arrayHead: Array[String], rowsCut: Int, indexRow: Int) = {
+    val headValue = this.setHeader(arrayHead)
     val head = keyMValueNMSheet.createRow(0)
     for (i <- 0 until this.setHeader(arrayHead).length) {
       val header = head.createCell(i)
-      header.setCellStyle(headStyle)
-      header.setCellValue(this.setHeader(arrayHead).apply(i))
+      if (i < indexRow * 4) {
+        header.setCellStyle(headIndexStyle)
+        header.setCellValue(headValue.apply(i))
+      } else {
+        header.setCellStyle(headStyle)
+        header.setCellValue(headValue.apply(i))
+      }
     }
 
     val dataArray = this.removeNotDiffRow(collectResult)
@@ -93,13 +103,13 @@ object Csv2ExcelUtil {
     }
 
     for (i <- 0 until this.setHeader(arrayHead).length) {
-      if (this.setHeader(arrayHead).apply(i).toString().contains("flag")) {
+      if (headValue.apply(i).toString().contains("flag")) {
         keyMValueNMSheet.setColumnHidden(i, true)
       }
     }
   }
 
-  private def createNew2Sheet(collectResult: Array[SqlRow], arrayHead: Array[String]) = {
+  private def createNew2Sheet(collectResult: Array[SqlRow], arrayHead: Array[String], rowsCut: Int) = {
     val arrayData = collectResult.map(row => this.eachRow(row))
     val head = leftSideSheet.createRow(0)
     for (i <- 0 until this.setHeader(arrayHead).length) {
@@ -108,17 +118,28 @@ object Csv2ExcelUtil {
     }
 
     val dataArray = this.setCellData(arrayData)
-    for (i <- 0 until dataArray.length) {
-      val dataList = dataArray.apply(i).toList
-      val rows = leftSideSheet.createRow(i + 1)
-      for (j <- 0 until dataList.length) {
-        val rowCell = rows.createCell(j)
-        rowCell.setCellValue(dataList.apply(i))
+    if (dataArray.length > rowsCut) {
+      for (i <- 0 until dataArray.length) {
+        val dataList = dataArray.apply(i).toList
+        val rows = leftSideSheet.createRow(i + 1)
+        for (j <- 0 until dataList.length) {
+          val rowCell = rows.createCell(j)
+          rowCell.setCellValue(dataList.apply(i))
+        }
+      }
+    } else {
+      for (i <- 0 until dataArray.length) {
+        val dataList = dataArray.apply(i).toList
+        val rows = leftSideSheet.createRow(i + 1)
+        for (j <- 0 until dataList.length) {
+          val rowCell = rows.createCell(j)
+          rowCell.setCellValue(dataList.apply(i))
+        }
       }
     }
   }
 
-  private def createNew3Sheet(collectResult: Array[SqlRow], arrayHead: Array[String]) = {
+  private def createNew3Sheet(collectResult: Array[SqlRow], arrayHead: Array[String], rowsCut: Int) = {
     val arrayData = collectResult.map(row => this.eachRow(row))
     val head = rightSideSheet.createRow(0)
     for (i <- 0 until this.setHeader(arrayHead).length) {
@@ -127,17 +148,28 @@ object Csv2ExcelUtil {
     }
 
     val dataArray = this.setCellData(arrayData)
-    for (i <- 0 until dataArray.length) {
-      val dataList = dataArray.apply(i).toList
-      val rows = rightSideSheet.createRow(i + 1)
-      for (j <- 0 until dataList.length) {
-        val rowCell = rows.createCell(j)
-        rowCell.setCellValue(dataList.apply(i))
+    if (dataArray.length > rowsCut) {
+      for (i <- 0 until dataArray.length) {
+        val dataList = dataArray.apply(i).toList
+        val rows = rightSideSheet.createRow(i + 1)
+        for (j <- 0 until dataList.length) {
+          val rowCell = rows.createCell(j)
+          rowCell.setCellValue(dataList.apply(i))
+        }
+      }
+    } else {
+      for (i <- 0 until dataArray.length) {
+        val dataList = dataArray.apply(i).toList
+        val rows = rightSideSheet.createRow(i + 1)
+        for (j <- 0 until dataList.length) {
+          val rowCell = rows.createCell(j)
+          rowCell.setCellValue(dataList.apply(i))
+        }
       }
     }
   }
 
-  private def createIntroSheet(lName: String, rName: String, collectResult: Array[SqlRow], ltNotInRt: Array[SqlRow], rtNotInLt: Array[SqlRow], rowsCut: Int) = {
+  private def createIntroSheet(lName: String, rName: String, collectResult: Array[SqlRow], ltNotInRt: Array[SqlRow], rtNotInLt: Array[SqlRow], arrayHead: Array[String], rowsCut: Int) = {
     val arrayData = collectResult.map(row => this.eachRow(row))
     var aBKeyValueNotMatch = 0
     val allKeyMatchValueRow = arrayData.length
@@ -166,8 +198,8 @@ object Csv2ExcelUtil {
     headValue1.setCellStyle(headStyle)
 
     val headValue2 = headRow1.createCell(1)
-    headValue1.setCellValue("Table Alias")
-    headValue1.setCellStyle(headStyle)
+    headValue2.setCellValue("Table Alias")
+    headValue2.setCellStyle(headStyle)
 
     val data1 = introSheet.createRow(1)
     data1.createCell(0).setCellValue(lName)
@@ -186,13 +218,13 @@ object Csv2ExcelUtil {
     headValue4.setCellValue("Rows")
     headValue4.setCellStyle(headStyle)
 
-    val data4 = introSheet.createRow(1)
+    val data4 = introSheet.createRow(5)
     data4.createCell(0).setCellValue("A, B KeyMatchValueMatch")
     data4.createCell(1).setCellValue(allKeyMatchValueRow - aBKeyValueNotMatch)
 
     val data5 = introSheet.createRow(6)
-    data2.createCell(0).setCellValue("A, B KeyMatchValueNotMatch")
-    data2.createCell(1).setCellValue(aBKeyValueNotMatch)
+    data5.createCell(0).setCellValue("A, B KeyMatchValueNotMatch")
+    data5.createCell(1).setCellValue(aBKeyValueNotMatch)
 
     val data6 = introSheet.createRow(7)
     data6.createCell(0).setCellValue("IN A NOT IN B")
@@ -202,8 +234,49 @@ object Csv2ExcelUtil {
     data7.createCell(0).setCellValue("IN B NOT IN A")
     data7.createCell(1).setCellValue(INBNOTINA)
 
+    val headRow3 = introSheet.createRow(10)
+    val headValue5 = headRow3.createCell(0)
+    headValue5.setCellValue("columnBreak")
+    headValue5.setCellStyle(headStyle)
+
+    val headValue6 = headRow3.createCell(1)
+    headValue6.setCellValue("Nums")
+    headValue6.setCellStyle(headStyle)
+
+    val data11 = introSheet.createRow(11)
+
+    val cellMap = this.getCellBreakNum(collectResult, arrayHead, rowsCut)
+    val keysList = cellMap.keys.toList
+    for (i <- 0 until keysList.length) {
+      val dataRow = introSheet.createRow(i + 11)
+      dataRow.createCell(0).setCellValue(keysList.apply(i))
+      dataRow.createCell(1).setCellValue(cellMap.get(keysList.apply(i)).get)
+    }
+
     introSheet.autoSizeColumn(0)
     introSheet.autoSizeColumn(1)
+  }
+
+  private def getCellBreakNum(collectResult: Array[SqlRow], arrayHead: Array[String], rowsCut: Int): Map[String, Int] = {
+    val headValue = this.setHeader(arrayHead)
+    val dataArray = this.removeNotDiffRow(collectResult)
+
+    var cellMap: Map[String, Int] = Map()
+    for (i <- 0 until headValue.length) {
+      if (headValue.apply(i).contains("flag")) {
+        cellMap += (headValue.apply(i).substring(5) -> 0)
+      }
+    }
+
+    for (i <- 0 until dataArray.length) {
+      val rowData = dataArray.apply(i).toList
+      for (j <- 0 until rowData.length) {
+        if (headValue.apply(j).contains("flag") && "Y".equals(rowData.apply(j))) {
+          cellMap += (headValue.apply(i).substring(5) -> (cellMap.get(headValue.apply(j).substring(5)).get + 1))
+        }
+      }
+    }
+    cellMap
   }
 
   private def removeNotDiffRow(collectResult: Array[SqlRow]): List[Array[String]] = {
