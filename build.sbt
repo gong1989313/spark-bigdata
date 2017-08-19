@@ -14,7 +14,8 @@ val scalaTest = "org.scalatest" % "scalatest_2.11" % "3.0.3" % "test"
 val playJson = "com.typesafe.play" % "play-json_2.11" % "2.6.2"
 val spoiwo = "com.norbitltd" % "spoiwo_2.11" % "1.2.0"
 val jxl = "net.sourceforge.jexcelapi" % "jxl" % "2.6.12"
-
+val storm = "org.apache.storm" % "storm-core" % "1.1.1" % "provided"
+val mongodb = "org.mongodb.spark" % "mongo-spark-connector_2.11" % "2.2.0"
 
 lazy val commonSettings = Seq(
 	organization := "com.gxq.learn",
@@ -65,7 +66,8 @@ lazy val gpfDWReconTool = (project in file("gpfDWReconTool"))
 			scalaTest,
 			playJson,
 			spoiwo,
-			jxl
+			jxl,
+			mongodb
 		),
 		libraryDependencies ~= { _.map(_.exclude("org.slf4j", "slf4j-log4j12")) }
 	)
