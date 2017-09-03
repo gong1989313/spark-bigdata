@@ -1,6 +1,6 @@
-val sparkCore = "org.apache.spark" % "spark-core_2.11" % "2.2.0" % "provided"
-val sparkSql = "org.apache.spark" % "spark-sql_2.11" % "2.2.0" % "provided"
-val sparkStreaming = "org.apache.spark" % "spark-streaming_2.11" % "2.2.0" % "provided"
+val sparkCore = "org.apache.spark" % "spark-core_2.11" % "2.2.0" % "provided" withSources()
+val sparkSql = "org.apache.spark" % "spark-sql_2.11" % "2.2.0" % "provided" withSources()
+val sparkStreaming = "org.apache.spark" % "spark-streaming_2.11" % "2.2.0" % "provided" withSources()
 
 val mssqlJdbc = "com.microsoft.sqlserver" % "mssql-jdbc" % "6.2.1.jre8" 
 val commonsDbutils = "commons-dbutils" % "commons-dbutils" % "1.7"
