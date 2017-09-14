@@ -1,9 +1,11 @@
-import org.apache.spark.sql.SparkSession
+package com.gxq.learn.spark.transformation
+
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.types.IntegerType
 import org.apache.spark.sql.types.StringType
 import org.apache.spark.sql.Row
 import com.gxq.learn.recontool.utils.SparkContextFactory
+import scala.collection.Seq
 
 object SchemaTest {
   def main(args: Array[String]): Unit = {
