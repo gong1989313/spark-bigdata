@@ -21,8 +21,8 @@ object MongoDB {
       .set("spark.mongodb.output.uri", "mongodb://192.168.2.13:27017,192.168.2.14:27017,192.168.2.15:27017/outputDB.collectionName")
 */
     val writeConfig = WriteConfig(Map("spark.mongodb.output.uri" -> "mongodb://192.168.2.13:27017",
-      "spark.mongodb.input.database" -> "spark",
-      "spark.mongodb.input.collection" -> "test"), Some(WriteConfig(sc)))
+      "spark.mongodb.output.database" -> "spark",
+      "spark.mongodb.output.collection" -> "test"), Some(WriteConfig(sc)))
     val sparkDocuments = sc.parallelize((1 to 10).map(i => Document.parse(s"{spark: $i}")))
     MongoSpark.save(sparkDocuments, writeConfig)
   }
