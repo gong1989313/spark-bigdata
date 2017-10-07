@@ -36,7 +36,7 @@ lazy val commonSettings = Seq(
 )
 
 lazy val bigdata = (project in file("."))
-	.aggregate(gpfDWReconTool)
+	.aggregate(gpfDWReconTool, gpfDWLogMonitor)
 	.settings(
 		commonSettings,
 		name := "bigdata",
@@ -70,6 +70,23 @@ lazy val gpfDWReconTool = (project in file("gpfDWReconTool"))
 			jxl,
 			mongodb,
 			mysqlJdbc
+		),
+		libraryDependencies ~= { _.map(_.exclude("org.slf4j", "slf4j-log4j12")) }
+	)
+	
+	lazy val gpfDWLogMonitor = (project in file("gpfDWLogMonitor"))
+	.settings(
+		commonSettings,
+		name := "gpfDWLogMonitor",
+		version :="0.0.1",
+		assemblyJarName in assembly := "gpfDWLogMonitor.jar",
+		test in assembly :={},
+		dependencyOverrides += "com.fasterxml.jackson.core" % "jackson-databind" % "2.8.9",
+		dependencyOverrides += "com.fasterxml.jackson.module" % "jackson-module-scala_2.11" % "2.8.9",
+		libraryDependencies ++= Seq(
+			sparkCore,
+			sparkSql,
+			sparkStreaming
 		),
 		libraryDependencies ~= { _.map(_.exclude("org.slf4j", "slf4j-log4j12")) }
 	)
