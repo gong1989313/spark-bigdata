@@ -17,6 +17,7 @@ val jxl = "net.sourceforge.jexcelapi" % "jxl" % "2.6.12"
 val storm = "org.apache.storm" % "storm-core" % "1.1.1" % "provided"
 val mongodb = "org.mongodb.spark" % "mongo-spark-connector_2.11" % "2.2.0"
 val mysqlJdbc = "mysql" % "mysql-connector-java" % "8.0.7-dmr"
+val sparkStreamingKafka = "org.apache.spark" % "spark-streaming-kafka-0-10_2.11" % "2.2.0"
 
 lazy val commonSettings = Seq(
 	organization := "com.gxq.learn",
@@ -86,9 +87,9 @@ lazy val gpfDWReconTool = (project in file("gpfDWReconTool"))
 		libraryDependencies ++= Seq(
 			sparkCore,
 			sparkSql,
-			sparkStreaming
-		),
-		libraryDependencies ~= { _.map(_.exclude("org.slf4j", "slf4j-log4j12")) }
+			sparkStreaming,
+			sparkStreamingKafka
+		)
 	)
 
 
