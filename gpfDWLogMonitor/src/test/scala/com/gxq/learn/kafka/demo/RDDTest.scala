@@ -7,7 +7,7 @@ import org.apache.spark.SparkContext
 
 object RDDTest {
   def main(args: Array[String]): Unit = {
-    val conf = new SparkConf().setAppName("Spark Kafka Sample1")
+    val conf = new SparkConf().setAppName("Spark Rdd Sample1")
 
     conf.setMaster("local[*]")
 
